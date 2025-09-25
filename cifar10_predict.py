@@ -118,11 +118,11 @@ def load_cifar10(root="./data", train_size=None, test_size=None, seed=42, bs=512
 
 # -------------------- 파이프라인 --------------------
 def run_pipeline(root="./data",
-                 train_size=5000, test_size=1000, seed=42,
-                 ipca_components=N_COMP_DEFAULT, batch=BATCH_DEFAULT,
-                 hog_win=HOG_SIZE_DEFAULT, hog_block=(16,16), hog_stride=(8,8), hog_cell=(8,8),
-                 nbins=NBINS_DEFAULT,
-                 sgd_loss="hinge", sgd_alpha=1e-4, sgd_max_iter=1000):
+                train_size=5000, test_size=1000, seed=42,
+                ipca_components=N_COMP_DEFAULT, batch=BATCH_DEFAULT,
+                hog_win=HOG_SIZE_DEFAULT, hog_block=(16,16), hog_stride=(8,8), hog_cell=(8,8),
+                nbins=NBINS_DEFAULT,
+                sgd_loss="hinge", sgd_alpha=1e-4, sgd_max_iter=1000):
     # 데이터
     train_loader, test_loader = load_cifar10(root=root, train_size=train_size, test_size=test_size, seed=seed, bs=batch)
     n_train = len(train_loader.dataset)
@@ -142,7 +142,7 @@ def run_pipeline(root="./data",
     ncomp_eff = min(ipca_components, batch, feat_dim)
     if ncomp_eff != ipca_components:
         print(f"[Info] Adjust IPCA n_components: requested={ipca_components} -> used={ncomp_eff} "
-              f"(limited by batch={batch}, feat_dim={feat_dim})")
+            f"(limited by batch={batch}, feat_dim={feat_dim})")
 
     # 1) Fit scaler
     scaler = StandardScaler(with_mean=True, with_std=True)
