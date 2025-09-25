@@ -6,11 +6,12 @@ CIFAR-10 (import via torchvision) + HOG + IPCA + SGDClassifier
 - Keeps original feature pipeline structure (HOG -> StandardScaler -> IncrementalPCA -> SGDClassifier)
 - Adds CLI options for quick experimentation
 """
-'''
+''
 라이브러리
 pip install torch torchvision numpy opencv-python-headless pillow scikit-learn tqdm
 
 실행
+
 # 1) IPCA=300, 배치 1000 (DataLoader도 1000, IPCA도 1000)
 python cifar10_predict.py --train_size 10000 --test_size 2000 --batch 1000 --ipca 300
 
