@@ -58,6 +58,7 @@ def save_plot_k_sweep(rows, title, out):
     print(f"[Saved plot] {out}")
 
 def run_kfold_cv(X, y, k_list, n_splits=5, random_state=42, use_scaler=True):
+    # 1) StratifiedKFold: 각 폴드에 클래스 비율 유지
     skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=random_state)
     results = {k: [] for k in k_list}
 
@@ -65,15 +66,16 @@ def run_kfold_cv(X, y, k_list, n_splits=5, random_state=42, use_scaler=True):
         print(f"[Fold {fold}/{n_splits}]")
         X_tr, X_te = X[tr], X[te]
         y_tr, y_te = y[tr], y[te]
+        # 2) 폴드마다 전처리 fit→transform (데이터 누수 방지)
         X_tr_f, meta = build_features(X_tr, use_scaler=use_scaler)
         X_te_f = meta["scaler"].transform(X_te) if "scaler" in meta else X_te
-
+        # 3) 각 k에 대해 학습/평가
         for k in k_list:
             clf = KNeighborsClassifier(n_neighbors=k, n_jobs=-1)
             clf.fit(X_tr_f, y_tr)
             pred = clf.predict(X_te_f)
             results[k].append(evaluate(y_te, pred)["accuracy"])
-
+    # 4) 폴드 평균/표준편차 레포트
     for k in k_list:
         accs = np.array(results[k])
         print(f"k={k}: mean={accs.mean():.4f}, std={accs.std(ddof=1):.4f}")
@@ -93,7 +95,7 @@ def run_split_with_val(X, y, k_list, val_size, test_size, random_state=42, use_s
     X_val_f = meta["scaler"].transform(X_val) if "scaler" in meta else X_val
     X_te_f  = meta["scaler"].transform(X_te)  if "scaler" in meta else X_te
 
-    # 3) 검증셋으로 각 k 성능 측정 (→ 플롯에 쓸 rows 만들어두기)
+    # 3) 검증셋으로 각 k 성능 측정 (→ 플롯에 쓸 rows 만들어두기) (여기선 macro-F1 기준)
     val_scores = []
     best_k, best_f1 = None, -1.0
     for k in k_list:
@@ -115,10 +117,12 @@ def run_split_with_val(X, y, k_list, val_size, test_size, random_state=42, use_s
     save_plot_k_sweep(val_scores, title="Validation Performance vs k", out="plot_val_k.png")
 
 def run_simple_split(X, y, k_list, test_size, random_state=42, use_scaler=True):
+    # 1) Stratified split: 클래스 비율 보존
     X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=test_size, stratify=y, random_state=random_state)
+    # 2) 전처리(학습셋 기준으로 fit) → 테스트셋에는 transform만 적용 (데이터 누수 방지)
     X_tr_f, meta = build_features(X_tr, use_scaler=use_scaler)
     X_te_f = meta["scaler"].transform(X_te) if "scaler" in meta else X_te
-
+    # 3) 여러 k 스윕: 학습→예측→지표 출력
     print("[Simple Split] Train:", X_tr_f.shape, "Test:", X_te_f.shape)
     for k in k_list:
         clf = KNeighborsClassifier(n_neighbors=k, n_jobs=-1)
