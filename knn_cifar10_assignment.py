@@ -14,6 +14,28 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 from sklearn.model_selection import train_test_split
+def run_split_with_val(X, y, k_list, val_size, test_size, random_state=42, use_scaler=True):
+    X_tmp, X_te, y_tmp, y_te = train_test_split(X, y, test_size=test_size, stratify=y, random_state=random_state)
+    val_ratio = val_size / len(X_tmp)
+    X_tr, X_val, y_tr, y_val = train_test_split(X_tmp, y_tmp, test_size=val_ratio, stratify=y_tmp, random_state=random_state)
+
+    X_tr_f, meta = build_features(X_tr, use_scaler=use_scaler)
+    X_val_f = meta["scaler"].transform(X_val) if "scaler" in meta else X_val
+    X_te_f = meta["scaler"].transform(X_te) if "scaler" in meta else X_te
+
+    best_k, best_f1 = None, -1
+    for k in k_list:
+        clf = KNeighborsClassifier(n_neighbors=k, n_jobs=-1)
+        clf.fit(X_tr_f, y_tr)
+        val_pred = clf.predict(X_val_f)
+        metrics = evaluate(y_val, val_pred)
+        if metrics["f1"] > best_f1:
+            best_k, best_f1 = k, metrics["f1"]
+
+    clf = KNeighborsClassifier(n_neighbors=best_k, n_jobs=-1)
+    clf.fit(X_tr_f, y_tr)
+    test_pred = clf.predict(X_te_f)
+    print(f"[Best k={best_k}] Test → {evaluate(y_te, test_pred)}")
 
 def run_simple_split(X, y, k_list, test_size, random_state=42, use_scaler=True):
     X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=test_size, stratify=y, random_state=random_state)
