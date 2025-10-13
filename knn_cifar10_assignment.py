@@ -14,6 +14,29 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 from sklearn.model_selection import train_test_split
+from sklearn.model_selection import StratifiedKFold
+
+def run_kfold_cv(X, y, k_list, n_splits=5, random_state=42, use_scaler=True):
+    skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=random_state)
+    results = {k: [] for k in k_list}
+
+    for fold, (tr, te) in enumerate(skf.split(X, y), 1):
+        print(f"[Fold {fold}/{n_splits}]")
+        X_tr, X_te = X[tr], X[te]
+        y_tr, y_te = y[tr], y[te]
+        X_tr_f, meta = build_features(X_tr, use_scaler=use_scaler)
+        X_te_f = meta["scaler"].transform(X_te) if "scaler" in meta else X_te
+
+        for k in k_list:
+            clf = KNeighborsClassifier(n_neighbors=k, n_jobs=-1)
+            clf.fit(X_tr_f, y_tr)
+            pred = clf.predict(X_te_f)
+            results[k].append(evaluate(y_te, pred)["accuracy"])
+
+    for k in k_list:
+        accs = np.array(results[k])
+        print(f"k={k}: mean={accs.mean():.4f}, std={accs.std(ddof=1):.4f}")
+
 def run_split_with_val(X, y, k_list, val_size, test_size, random_state=42, use_scaler=True):
     X_tmp, X_te, y_tmp, y_te = train_test_split(X, y, test_size=test_size, stratify=y, random_state=random_state)
     val_ratio = val_size / len(X_tmp)
