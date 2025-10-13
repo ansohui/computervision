@@ -119,9 +119,25 @@ def dataset_to_numpy(ds, max_samples=None):
     return X, y
 
 def main():
-    parser = argparse.ArgumentParser(description="KNN on CIFAR-10 (base structure)")
+    parser = argparse.ArgumentParser(description="KNN on CIFAR-10 (Assignment)")
+    parser.add_argument("--mode", choices=["split","split_val","cv"], required=True)
+    parser.add_argument("--train_size", type=int, default=10000)
+    parser.add_argument("--val_size", type=int, default=5000)
+    parser.add_argument("--test_size", type=int, default=5000)
+    parser.add_argument("--k_list", type=int, nargs="+", default=[1,3,5,7,9])
+    parser.add_argument("--folds", type=int, default=5)
+    parser.add_argument("--data_root", type=str, default="./data")
     args = parser.parse_args()
-    print("Base structure ready.")
+
+    ds = load_cifar10(args.data_root, train=True)
+    X, y = dataset_to_numpy(ds, max_samples=args.train_size + args.val_size + args.test_size)
+    if args.mode == "split":
+        run_simple_split(X, y, args.k_list, args.test_size)
+    elif args.mode == "split_val":
+        run_split_with_val(X, y, args.k_list, args.val_size, args.test_size)
+    elif args.mode == "cv":
+        run_kfold_cv(X, y, args.k_list, args.folds)
+
 
 if __name__ == "__main__":
     main()
