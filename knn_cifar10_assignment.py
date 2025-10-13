@@ -10,6 +10,22 @@ import argparse
 import numpy as np
 import torch
 from torchvision import datasets, transforms
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import accuracy_score, precision_recall_fscore_support
+from sklearn.model_selection import train_test_split
+
+def evaluate(y_true, y_pred):
+    acc = accuracy_score(y_true, y_pred)
+    prec, rec, f1, _ = precision_recall_fscore_support(y_true, y_pred, average="macro", zero_division=0)
+    return {"accuracy": acc, "precision": prec, "recall": rec, "f1": f1}
+
+def build_features(X, use_scaler=True):
+    if use_scaler:
+        scaler = StandardScaler()
+        X = scaler.fit_transform(X)
+        return X, {"scaler": scaler}
+    return X, {}
 
 def load_cifar10(root="./data", train=True):
     """CIFAR-10을 torchvision에서 불러온다."""
