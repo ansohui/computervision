@@ -1,10 +1,37 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 """
-K-Nearest Neighbors (KNN) on CIFAR-10
---------------------------------------
+K-Nearest Neighbors (KNN) on CIFAR-10 — Assignment Version
+----------------------------------------------------------
+이 스크립트는 CIFAR-10 데이터셋에 대해 KNN 분류기를 적용하고,
+다음의 세 가지 실험 모드를 지원한다.
+
+[체크리스트 ✅]
+1) CIFAR-10 데이터셋 (torchvision)
+2) KNN 분류 (scikit-learn)
+3) 실험 모드
+   - split      : train/test 분할
+   - split_val  : train/validation/test (val로 best-k 선택)
+   - cv         : 5-fold 교차검증
+4) 평가지표: accuracy, precision, recall, F1(macro)
+5) k-스윕 결과 그래프 저장 (필요 시 save_plot_k_sweep 사용)
+
+[실행 예시]
+# 1) 단순 train/test (k=5만 검사)
+python knn_cifar10_assignment.py --mode split --k_list 5 --train_size 10000 --test_size 5000
+
+# 2) train/val/test (val로 best-k 선택)
+python knn_cifar10_assignment.py --mode split_val --k_list 1 3 5 7 9 \
+  --train_size 10000 --val_size 5000 --test_size 5000
+
+# 3) 5-fold 교차검증 (k-스윕)
+python knn_cifar10_assignment.py --mode cv --k_list 1 3 5 7 9 --folds 5
 """
+
 
 import argparse
 import numpy as np
@@ -52,27 +79,40 @@ def run_kfold_cv(X, y, k_list, n_splits=5, random_state=42, use_scaler=True):
         print(f"k={k}: mean={accs.mean():.4f}, std={accs.std(ddof=1):.4f}")
 
 def run_split_with_val(X, y, k_list, val_size, test_size, random_state=42, use_scaler=True):
-    X_tmp, X_te, y_tmp, y_te = train_test_split(X, y, test_size=test_size, stratify=y, random_state=random_state)
+    # 1) 먼저 test를 분리 → 남은 데이터에서 train/val 분리
+    X_tmp, X_te, y_tmp, y_te = train_test_split(
+        X, y, test_size=test_size, stratify=y, random_state=random_state
+    )
     val_ratio = val_size / len(X_tmp)
-    X_tr, X_val, y_tr, y_val = train_test_split(X_tmp, y_tmp, test_size=val_ratio, stratify=y_tmp, random_state=random_state)
+    X_tr, X_val, y_tr, y_val = train_test_split(
+        X_tmp, y_tmp, test_size=val_ratio, stratify=y_tmp, random_state=random_state
+    )
 
+    # 2) 전처리 fit은 train으로만 → val/test에는 transform만 (데이터 누수 방지)
     X_tr_f, meta = build_features(X_tr, use_scaler=use_scaler)
     X_val_f = meta["scaler"].transform(X_val) if "scaler" in meta else X_val
-    X_te_f = meta["scaler"].transform(X_te) if "scaler" in meta else X_te
+    X_te_f  = meta["scaler"].transform(X_te)  if "scaler" in meta else X_te
 
-    best_k, best_f1 = None, -1
+    # 3) 검증셋으로 각 k 성능 측정 (→ 플롯에 쓸 rows 만들어두기)
+    val_scores = []
+    best_k, best_f1 = None, -1.0
     for k in k_list:
         clf = KNeighborsClassifier(n_neighbors=k, n_jobs=-1)
         clf.fit(X_tr_f, y_tr)
         val_pred = clf.predict(X_val_f)
         metrics = evaluate(y_val, val_pred)
+        val_scores.append({"k": k, **metrics})
         if metrics["f1"] > best_f1:
             best_k, best_f1 = k, metrics["f1"]
 
+    # 4) best-k로 재학습 후 test 평가
     clf = KNeighborsClassifier(n_neighbors=best_k, n_jobs=-1)
     clf.fit(X_tr_f, y_tr)
     test_pred = clf.predict(X_te_f)
     print(f"[Best k={best_k}] Test → {evaluate(y_te, test_pred)}")
+
+    # 5) 검증 성능 그래프 저장
+    save_plot_k_sweep(val_scores, title="Validation Performance vs k", out="plot_val_k.png")
 
 def run_simple_split(X, y, k_list, test_size, random_state=42, use_scaler=True):
     X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=test_size, stratify=y, random_state=random_state)
