@@ -15,6 +15,18 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 from sklearn.model_selection import train_test_split
 
+def run_simple_split(X, y, k_list, test_size, random_state=42, use_scaler=True):
+    X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=test_size, stratify=y, random_state=random_state)
+    X_tr_f, meta = build_features(X_tr, use_scaler=use_scaler)
+    X_te_f = meta["scaler"].transform(X_te) if "scaler" in meta else X_te
+
+    print("[Simple Split] Train:", X_tr_f.shape, "Test:", X_te_f.shape)
+    for k in k_list:
+        clf = KNeighborsClassifier(n_neighbors=k, n_jobs=-1)
+        clf.fit(X_tr_f, y_tr)
+        y_pred = clf.predict(X_te_f)
+        print(f"k={k} → {evaluate(y_te, y_pred)}")
+
 def evaluate(y_true, y_pred):
     acc = accuracy_score(y_true, y_pred)
     prec, rec, f1, _ = precision_recall_fscore_support(y_true, y_pred, average="macro", zero_division=0)
