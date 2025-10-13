@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
+'''
 CIFAR-10 (import via torchvision) + HOG + IPCA + SGDClassifier
 - Replaces local 7z extraction & CSV scanning with torchvision.datasets.CIFAR10()
 - Keeps original feature pipeline structure (HOG -> StandardScaler -> IncrementalPCA -> SGDClassifier)
 - Adds CLI options for quick experimentation
-"""
-''
+
 라이브러리
 pip install torch torchvision numpy opencv-python-headless pillow scikit-learn tqdm
 
@@ -22,8 +21,8 @@ python cifar10_predict.py --train_size 10000 --test_size 2000 --batch 1000 --ipc
 python cifar10_predict.py --train_size 10000 --test_size 2000 \
 --batch 1000 --ipca 500 --loss log_loss --alpha 1e-5 --max_iter 2000
 
-2
-python cifar10_predict.py \
+4)
+ python cifar10_predict.py \
   --train_size 10000 \
   --test_size 2000 \
   --ipca 500 \
@@ -34,15 +33,14 @@ python cifar10_predict.py --train_size 10000 --test_size 2000 --batch 1000 --ipc
 빠른 테스트
 python cifar10_predict.py --train_size 2000 --test_size 500
 
-'''
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
+
 CIFAR-10 (import via torchvision) + Grayscale + HOG + IPCA + SGD
 - --batch 가 DataLoader(batch_size)와 IPCA(batch_size)에 모두 반영됨
 - IPCA n_components가 batch_size/특징차원보다 크면 자동 조정
 - 모든 학습용 미니배치를 동일 크기로 맞추기 위해 drop_last=True (IPCA 제약 때문)
-"""
+'''
 import argparse, math
 import numpy as np
 from PIL import Image
