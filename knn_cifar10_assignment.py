@@ -139,13 +139,22 @@ def build_features(X, use_scaler=True):
     return X, {}
 
 def load_cifar10(root="./data", train=True):
-    """CIFAR-10을 torchvision에서 불러온다."""
+    """CIFAR-10을 torchvision에서 불러온다.
+    - transform: ToTensor() → Tensor(C,H,W) in [0,1] 범위
+    - train=True  : 50,000장 (클래스별 5,000장)
+    - train=False : 10,000장 (여기서는 직접 분할을 하므로 주로 train=True 사용)
+    """
     tfm = transforms.Compose([transforms.ToTensor()])
     ds = datasets.CIFAR10(root=root, train=train, download=True, transform=tfm)
     return ds
 
 def dataset_to_numpy(ds, max_samples=None):
-    """torch Dataset → numpy 배열로 변환"""
+    """torch Dataset → numpy 배열
+    - 고전적인 KNN(거리기반) 실험을 위해 픽셀을 평탄화(flatten)하여 사용 (3072차원)
+    - max_samples: 빠른 실험을 위한 상한
+    반환:
+      X: (N, 3072) float32, y: (N,) int64
+    """
     if max_samples is None:
         max_samples = len(ds)
     idxs = np.arange(len(ds))[:max_samples]
