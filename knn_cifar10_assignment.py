@@ -45,6 +45,14 @@ from sklearn.model_selection import StratifiedKFold
 import matplotlib.pyplot as plt
 
 def save_plot_k_sweep(rows, title, out):
+    """k-스윕 결과를 선 그래프로 저장
+    - rows: [{"k": int, "accuracy": float, ...}, ...] 형태 가정
+    - title: 그림 제목
+    - out: 저장 파일 경로 (예: 'plot_split_k.png')
+    [사용 예시]
+      rows = [{"k":1,"accuracy":0.45}, {"k":3,"accuracy":0.50}, ...]
+      save_plot_k_sweep(rows, "Simple Split Accuracy vs k", "plot_split_k.png")
+    """
     ks = [r["k"] for r in rows]
     accs = [r["accuracy"] for r in rows]
     plt.figure(figsize=(6,4))
