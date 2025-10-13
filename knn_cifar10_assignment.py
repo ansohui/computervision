@@ -15,6 +15,20 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import StratifiedKFold
+import matplotlib.pyplot as plt
+
+def save_plot_k_sweep(rows, title, out):
+    ks = [r["k"] for r in rows]
+    accs = [r["accuracy"] for r in rows]
+    plt.figure(figsize=(6,4))
+    plt.plot(ks, accs, "-o")
+    plt.title(title)
+    plt.xlabel("k")
+    plt.ylabel("Accuracy")
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig(out)
+    print(f"[Saved plot] {out}")
 
 def run_kfold_cv(X, y, k_list, n_splits=5, random_state=42, use_scaler=True):
     skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=random_state)
