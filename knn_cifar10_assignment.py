@@ -127,11 +127,20 @@ def run_simple_split(X, y, k_list, test_size, random_state=42, use_scaler=True):
         print(f"k={k} → {evaluate(y_te, y_pred)}")
 
 def evaluate(y_true, y_pred):
+    """평가지표 계산
+    - accuracy: 전체 정확도
+    - precision/recall/F1: macro-average (클래스 불균형 영향 완화)
+    - zero_division=0: 특정 클래스 미예측 시 division by zero 방지
+    """
     acc = accuracy_score(y_true, y_pred)
     prec, rec, f1, _ = precision_recall_fscore_support(y_true, y_pred, average="macro", zero_division=0)
     return {"accuracy": acc, "precision": prec, "recall": rec, "f1": f1}
 
 def build_features(X, use_scaler=True):
+    """특징 전처리 (KNN 최적화)
+    - KNN은 '거리' 기반 → 각 차원의 스케일(분산)이 다르면 왜곡 발생
+    - StandardScaler: 평균 0, 표준편차 1로 정규화하여 거리 계산을 안정화
+    """
     if use_scaler:
         scaler = StandardScaler()
         X = scaler.fit_transform(X)
