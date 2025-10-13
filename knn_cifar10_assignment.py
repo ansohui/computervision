@@ -66,27 +66,56 @@ def save_plot_k_sweep(rows, title, out):
     print(f"[Saved plot] {out}")
 
 def run_kfold_cv(X, y, k_list, n_splits=5, random_state=42, use_scaler=True):
-    # 1) StratifiedKFold: 각 폴드에 클래스 비율 유지
+    """
+    StratifiedKFold 교차검증
+    - 각 폴드에서 train/test를 반복하며 k별 성능 측정
+    - fold별 평균/표준편차 계산 후 그래프로 저장 (plot_cv_k.png)
+    """
     skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=random_state)
     results = {k: [] for k in k_list}
 
-    for fold, (tr, te) in enumerate(skf.split(X, y), 1):
-        print(f"[Fold {fold}/{n_splits}]")
-        X_tr, X_te = X[tr], X[te]
-        y_tr, y_te = y[tr], y[te]
-        # 2) 폴드마다 전처리 fit→transform (데이터 누수 방지)
+    # fold 반복
+    for fold, (tr_idx, te_idx) in enumerate(skf.split(X, y), 1):
+        print(f"\n[CV] Fold {fold}/{n_splits}")
+        X_tr, X_te = X[tr_idx], X[te_idx]
+        y_tr, y_te = y[tr_idx], y[te_idx]
+
+        # 각 fold에서 scaler는 새로 학습해야 함 (데이터 누수 방지)
         X_tr_f, meta = build_features(X_tr, use_scaler=use_scaler)
         X_te_f = meta["scaler"].transform(X_te) if "scaler" in meta else X_te
-        # 3) 각 k에 대해 학습/평가
+
+        # k 스윕
         for k in k_list:
             clf = KNeighborsClassifier(n_neighbors=k, n_jobs=-1)
             clf.fit(X_tr_f, y_tr)
-            pred = clf.predict(X_te_f)
-            results[k].append(evaluate(y_te, pred)["accuracy"])
-    # 4) 폴드 평균/표준편차 레포트
+            y_pred = clf.predict(X_te_f)
+            metrics = evaluate(y_te, y_pred)
+            results[k].append(metrics["accuracy"])
+            print(f"k={k} → acc={metrics['accuracy']:.4f}, f1={metrics['f1']:.4f}")
+
+    # 평균/표준편차 계산
+    summary_rows = []
+    print("\n[CV Summary] mean ± std")
     for k in k_list:
         accs = np.array(results[k])
-        print(f"k={k}: mean={accs.mean():.4f}, std={accs.std(ddof=1):.4f}")
+        mean, std = accs.mean(), accs.std(ddof=1)
+        summary_rows.append({"k": k, "accuracy_mean": mean, "accuracy_std": std})
+        print(f"k={k}: {mean:.4f} ± {std:.4f}")
+
+    # 그래프 저장 (error bar 포함)
+    plt.figure(figsize=(7, 5))
+    ks = [r["k"] for r in summary_rows]
+    acc_mean = [r["accuracy_mean"] for r in summary_rows]
+    acc_std = [r["accuracy_std"] for r in summary_rows]
+
+    plt.errorbar(ks, acc_mean, yerr=acc_std, fmt="-o", capsize=5)
+    plt.title(f"{n_splits}-Fold CV: Accuracy vs k (±std)")
+    plt.xlabel("k")
+    plt.ylabel("Accuracy")
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+    plt.savefig("plot_cv_k.png")
+    print("[Saved plot] plot_cv_k.png")
 
 def run_split_with_val(X, y, k_list, val_size, test_size, random_state=42, use_scaler=True):
     # 1) 먼저 test를 분리 → 남은 데이터에서 train/val 분리
@@ -126,17 +155,32 @@ def run_split_with_val(X, y, k_list, val_size, test_size, random_state=42, use_s
 
 def run_simple_split(X, y, k_list, test_size, random_state=42, use_scaler=True):
     # 1) Stratified split: 클래스 비율 보존
-    X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=test_size, stratify=y, random_state=random_state)
+    X_tr, X_te, y_tr, y_te = train_test_split(
+        X, y, test_size=test_size, stratify=y, random_state=random_state
+    )
+
     # 2) 전처리(학습셋 기준으로 fit) → 테스트셋에는 transform만 적용 (데이터 누수 방지)
     X_tr_f, meta = build_features(X_tr, use_scaler=use_scaler)
     X_te_f = meta["scaler"].transform(X_te) if "scaler" in meta else X_te
+
     # 3) 여러 k 스윕: 학습→예측→지표 출력
     print("[Simple Split] Train:", X_tr_f.shape, "Test:", X_te_f.shape)
+    results = []  # 👈 그래프용 데이터 저장 리스트
     for k in k_list:
         clf = KNeighborsClassifier(n_neighbors=k, n_jobs=-1)
         clf.fit(X_tr_f, y_tr)
         y_pred = clf.predict(X_te_f)
-        print(f"k={k} → {evaluate(y_te, y_pred)}")
+        metrics = evaluate(y_te, y_pred)
+        results.append({"k": k, **metrics})
+        print(f"k={k} → {metrics}")
+
+    # 4) 결과 요약 + 그래프 저장
+    print("\n[Simple Split Summary]")
+    for row in results:
+        print(row)
+
+    save_plot_k_sweep(results, title="Simple Split: Test Accuracy vs k", out="plot_split_k.png")
+
 
 def evaluate(y_true, y_pred):
     """평가지표 계산
