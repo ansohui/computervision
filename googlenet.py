@@ -51,9 +51,40 @@ class Inception(nn.Module):
         return torch.cat([b1, b2, b3, b4], dim=1)
 
 # Auxiliary Classifier
+class AuxiliaryClassifier(nn.Module):
+    def __init__(
+        self, 
+        in_channels, 
+        num_classes
+    ):
+        super().__init__()
+        #AdaptiveAvgPool2d: NxN ->  4x4
+        self.avgpool = nn.AdaptiveAvgPool2d((4, 4))
+        # 2) 1x1 Conv로 채널 줄이기 (bottleneck)
+        self.conv = nn.Sequential(
+            nn.Conv2d(in_channels, 128, kernel_size=1),
+            nn.ReLU(inplace=True)
+        )
+        # 3) FC layers
+        self.fc1 = nn.Linear(128 * 4 * 4, 1024) #2048 -> 1024
+        self.dropout = nn.Dropout(0.7) 
+        self.fc2 = nn.Linear(1024, num_classes) #1024 -> the number of POC dataset class (=4)
+
+    def forward(self, x):
+        # x: [Batch size, Channel, Heghit, Weight] (예: [B, 512, 14, 14])
+        x = self.avgpool(x)          # → [B, 128, 4, 4] 전에 conv
+        x = self.conv(x)             # → [B, 128, 4, 4]
+        x = torch.flatten(x, 1)      # → [B, 128*4*4]
+        x = F.relu(self.fc1(x), inplace=True)
+        x = self.dropout(x)
+        x = self.fc2(x)              # → [B, num_classes]
+        return x
+
+
 # GoogLeNet Pipeline
 # main
 if __name__ == "__main__":
+
     # test: inception module
     # Dummy input (batch=1, channels=192, size=28×28)
     dummy = torch.randn(1, 192, 28, 28)
@@ -70,3 +101,10 @@ if __name__ == "__main__":
     output = inception3a(dummy)
 
     print("출력 shape:", output.shape) 
+
+    #test: Auxiliary Classifier
+    feat = torch.randn(1, 512, 14, 14)
+    aux_clf = AuxiliaryClassifier(in_channels=512, num_classes=4)  # POC_dataset이면 4클래스
+
+    aux_out = aux_clf(feat)
+    print("\nAuxiliaryClassifier 출력 shape:", aux_out.shape)  
