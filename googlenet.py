@@ -82,6 +82,111 @@ class AuxiliaryClassifier(nn.Module):
 
 
 # GoogLeNet Pipeline
+class GoogLeNet(nn.Module):
+    def __init__(self, num_classes=4, aux_logits=True):
+        super().__init__()
+        self.aux_logits = aux_logits
+
+        # Stem 
+        self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3)
+        self.maxpool1 = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+
+        self.conv2 = nn.Conv2d(64, 64, kernel_size=1)
+        self.conv3 = nn.Conv2d(64, 192, kernel_size=3, padding=1)
+        self.maxpool2 = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+
+        # Inception 3a / 3b 
+        self.inception3a = Inception(
+            in_channels=192,
+            ch1x1=64,
+            ch3x3_reduce=96, ch3x3=128,
+            ch5x5_reduce=16, ch5x5=32,
+            pool_proj=32
+        )  # 256
+
+        self.inception3b = Inception(
+            in_channels=256,
+            ch1x1=128,
+            ch3x3_reduce=128, ch3x3=192,
+            ch5x5_reduce=32, ch5x5=96,
+            pool_proj=64
+        )  # 480
+
+        self.maxpool3 = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+
+        # Inception 4a ~ 4e 
+        self.inception4a = Inception(
+            in_channels=480,
+            ch1x1=192,
+            ch3x3_reduce=96, ch3x3=208,
+            ch5x5_reduce=16, ch5x5=48,
+            pool_proj=64
+        )  # 512
+
+        self.inception4b = Inception(
+            in_channels=512,
+            ch1x1=160,
+            ch3x3_reduce=112, ch3x3=224,
+            ch5x5_reduce=24, ch5x5=64,
+            pool_proj=64
+        )  # 512
+
+        self.inception4c = Inception(
+            in_channels=512,
+            ch1x1=128,
+            ch3x3_reduce=128, ch3x3=256,
+            ch5x5_reduce=24, ch5x5=64,
+            pool_proj=64
+        )  # 512
+
+        self.inception4d = Inception(
+            in_channels=512,
+            ch1x1=112,
+            ch3x3_reduce=144, ch3x3=288,
+            ch5x5_reduce=32, ch5x5=64,
+            pool_proj=64
+        )  # 528
+
+        self.inception4e = Inception(
+            in_channels=528,
+            ch1x1=256,
+            ch3x3_reduce=160, ch3x3=320,
+            ch5x5_reduce=32, ch5x5=128,
+            pool_proj=128
+        )  # 832
+
+        self.maxpool4 = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+
+        # Inception 5a / 5b 
+        self.inception5a = Inception(
+            in_channels=832,
+            ch1x1=256,
+            ch3x3_reduce=160, ch3x3=320,
+            ch5x5_reduce=32, ch5x5=128,
+            pool_proj=128
+        )  # 832
+
+        self.inception5b = Inception(
+            in_channels=832,
+            ch1x1=384,
+            ch3x3_reduce=192, ch3x3=384,
+            ch5x5_reduce=48, ch5x5=128,
+            pool_proj=128
+        )  # 1024
+
+        # Auxiliary classifiers 
+        if self.aux_logits:
+            self.aux1 = AuxiliaryClassifier(in_channels=512, num_classes=num_classes)  # after 4a
+            self.aux2 = AuxiliaryClassifier(in_channels=528, num_classes=num_classes)  # after 4d
+        else:
+            self.aux1 = None
+            self.aux2 = None
+
+        # Classifier head
+        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        self.dropout = nn.Dropout(0.4)
+        self.fc = nn.Linear(1024, num_classes)
+
 # main
 if __name__ == "__main__":
 
