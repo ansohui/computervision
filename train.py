@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 from googlenet import GoogLeNet  # 같은 폴더에 있는 googlenet.py에서 import
 
@@ -15,8 +16,13 @@ if __name__ == "__main__":
 
     transform = transforms.Compose([
         transforms.Resize((224, 224)),
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomRotation(10),
+        transforms.ColorJitter(brightness=0.2, contrast=0.2),
         transforms.ToTensor(),
+        transforms.Normalize(mean=[0.5]*3, std=[0.5]*3),
     ])
+
 
     train_dataset = datasets.ImageFolder(root=train_dir, transform=transform)
     test_dataset = datasets.ImageFolder(root=test_dir, transform=transform)
@@ -31,7 +37,7 @@ if __name__ == "__main__":
     model = GoogLeNet(num_classes=num_classes, aux_logits=True).to(device)
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 
     num_epochs = 5
 
@@ -40,7 +46,13 @@ if __name__ == "__main__":
         model.train()
         running_loss = 0.0
 
-        for images, labels in train_loader:
+
+        for images, labels in tqdm(
+            train_loader,
+            desc=f"Epoch {epoch+1}/{num_epochs}",
+            ncols=100,
+            leave=False,
+        ):
             images = images.to(device)
             labels = labels.to(device)
 
