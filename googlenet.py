@@ -81,13 +81,12 @@ class AuxiliaryClassifier(nn.Module):
         return x
 
 
-# GoogLeNet Pipeline
 class GoogLeNet(nn.Module):
     def __init__(self, num_classes=4, aux_logits=True):
         super().__init__()
         self.aux_logits = aux_logits
 
-        # Stem 
+        # ===== Stem =====
         self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3)
         self.maxpool1 = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
@@ -95,7 +94,7 @@ class GoogLeNet(nn.Module):
         self.conv3 = nn.Conv2d(64, 192, kernel_size=3, padding=1)
         self.maxpool2 = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
-        # Inception 3a / 3b 
+        # ===== Inception 3a / 3b =====
         self.inception3a = Inception(
             in_channels=192,
             ch1x1=64,
@@ -114,7 +113,7 @@ class GoogLeNet(nn.Module):
 
         self.maxpool3 = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
-        # Inception 4a ~ 4e 
+        # ===== Inception 4a ~ 4e =====
         self.inception4a = Inception(
             in_channels=480,
             ch1x1=192,
@@ -157,7 +156,7 @@ class GoogLeNet(nn.Module):
 
         self.maxpool4 = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
-        # Inception 5a / 5b 
+        # ===== Inception 5a / 5b =====
         self.inception5a = Inception(
             in_channels=832,
             ch1x1=256,
@@ -174,7 +173,7 @@ class GoogLeNet(nn.Module):
             pool_proj=128
         )  # 1024
 
-        # Auxiliary classifiers 
+        # ===== Auxiliary classifiers =====
         if self.aux_logits:
             self.aux1 = AuxiliaryClassifier(in_channels=512, num_classes=num_classes)  # after 4a
             self.aux2 = AuxiliaryClassifier(in_channels=528, num_classes=num_classes)  # after 4d
@@ -182,10 +181,54 @@ class GoogLeNet(nn.Module):
             self.aux1 = None
             self.aux2 = None
 
-        # Classifier head
+        # ===== Classifier head =====
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.dropout = nn.Dropout(0.4)
         self.fc = nn.Linear(1024, num_classes)
+
+    def forward(self, x):
+        # ---- Stem ----
+        x = F.relu(self.conv1(x), inplace=True)
+        x = self.maxpool1(x)
+
+        x = F.relu(self.conv2(x), inplace=True)
+        x = F.relu(self.conv3(x), inplace=True)
+        x = self.maxpool2(x)
+
+        # ---- Inception 3 ----
+        x = self.inception3a(x)
+        x = self.inception3b(x)
+        x = self.maxpool3(x)
+
+        # ---- Inception 4 ----
+        x = self.inception4a(x)
+        aux1 = None
+        if self.aux_logits and self.training:
+            aux1 = self.aux1(x)  # after 4a
+
+        x = self.inception4b(x)
+        x = self.inception4c(x)
+        x = self.inception4d(x)
+        aux2 = None
+        if self.aux_logits and self.training:
+            aux2 = self.aux2(x)  # after 4d
+
+        x = self.inception4e(x)
+        x = self.maxpool4(x)
+
+        # ---- Inception 5 + head ----
+        x = self.inception5a(x)
+        x = self.inception5b(x)
+
+        x = self.avgpool(x)         # [B, 1024, 1, 1]
+        x = torch.flatten(x, 1)     # [B, 1024]
+        x = self.dropout(x)
+        x = self.fc(x)              # [B, num_classes]
+
+        if self.aux_logits and self.training:
+            return x, aux1, aux2    # train 모드
+        else:
+            return x                # eval 모드
 
 # main
 if __name__ == "__main__":
