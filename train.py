@@ -9,16 +9,19 @@ import matplotlib.pyplot as plt
 
 from googlenet import GoogLeNet  # 같은 폴더에 있는 googlenet.py에서 import
 
-def plot_confusion_matrix(cm, class_names):
+def plot_confusion_matrix(cm, class_names, epoch):
     plt.figure(figsize=(6, 5))
     sns.heatmap(cm, annot=True, fmt="d", cmap="Blues",
                 xticklabels=class_names,
                 yticklabels=class_names)
     plt.xlabel("Predicted")
     plt.ylabel("Actual")
-    plt.title("Confusion Matrix")
+    plt.title(f"Confusion Matrix (epoch {epoch})")
     plt.tight_layout()
-    plt.show()
+
+    plt.savefig(f"cm_epoch_{epoch:02d}.png")
+    plt.close()
+
 
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -67,10 +70,16 @@ if __name__ == "__main__":
     )
     num_epochs = 20
 
+    best_acc = 0.0
+    best_state = None
+    patience = 5        # 5 epoch 연속으로 개선 없으면 stop
+    no_improve = 0
+
     for epoch in range(num_epochs):
         # Train
         model.train()
         running_loss = 0.0
+
 
 
         for images, labels in tqdm(
@@ -128,7 +137,27 @@ if __name__ == "__main__":
 
         # Confusion matrix 출력 
         cm = confusion_matrix(all_labels, all_preds)
+        print("Class order:", train_dataset.classes)
         print("          Confusion matrix:")
         print(cm)
 
-        plot_confusion_matrix(cm, train_dataset.classes)
+        plot_confusion_matrix(cm, train_dataset.classes,epoch+1)
+
+        # Early Stopping 
+        if acc > best_acc:
+            best_acc = acc
+            best_state = model.state_dict()
+            no_improve = 0
+            print(f"          ✅ New best accuracy: {best_acc * 100:.2f}%")
+        else:
+            no_improve += 1
+            print(f"          No improvement for {no_improve} epoch(s).")
+
+        if no_improve >= patience:
+            print(f"Early stopping triggered at epoch {epoch+1}. Best acc = {best_acc * 100:.2f}%")
+            break
+    #save model
+    if best_state is not None:
+        model.load_state_dict(best_state)
+        torch.save(model.state_dict(), "googlenet_poc_best.pt")
+        print(f"Best model saved with accuracy {best_acc * 100:.2f}%")
