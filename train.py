@@ -3,8 +3,22 @@ import torch.nn as nn
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+from sklearn.metrics import confusion_matrix
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 from googlenet import GoogLeNet  # 같은 폴더에 있는 googlenet.py에서 import
+
+def plot_confusion_matrix(cm, class_names):
+    plt.figure(figsize=(6, 5))
+    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues",
+                xticklabels=class_names,
+                yticklabels=class_names)
+    plt.xlabel("Predicted")
+    plt.ylabel("Actual")
+    plt.title("Confusion Matrix")
+    plt.tight_layout()
+    plt.show()
 
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -14,7 +28,7 @@ if __name__ == "__main__":
     train_dir = "POC_Dataset/Training"
     test_dir = "POC_Dataset/Testing"
 
-    transform = transforms.Compose([
+    train_transform = transforms.Compose([
         transforms.Resize((224, 224)),
         transforms.RandomHorizontalFlip(),
         transforms.RandomRotation(10),
@@ -22,10 +36,16 @@ if __name__ == "__main__":
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.5]*3, std=[0.5]*3),
     ])
+    #Validation/Test: remove augmentation 
+    test_transform = transforms.Compose([   
+        transforms.Resize((224, 224)),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.5]*3, std=[0.5]*3),
+    ])
 
 
-    train_dataset = datasets.ImageFolder(root=train_dir, transform=transform)
-    test_dataset = datasets.ImageFolder(root=test_dir, transform=transform)
+    train_dataset = datasets.ImageFolder(root=train_dir, transform=train_transform)
+    test_dataset = datasets.ImageFolder(root=test_dir, transform=test_transform)
 
     train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True)
     test_loader = DataLoader(test_dataset, batch_size=16, shuffle=False)
@@ -39,7 +59,13 @@ if __name__ == "__main__":
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 
-    num_epochs = 5
+    #LR scheduler
+    scheduler = torch.optim.lr_scheduler.StepLR(
+        optimizer,
+        step_size=5,
+        gamma=0.1
+    )
+    num_epochs = 20
 
     for epoch in range(num_epochs):
         # Train
@@ -61,7 +87,9 @@ if __name__ == "__main__":
             loss_main = criterion(outputs, labels)
             loss_aux1 = criterion(aux1, labels)
             loss_aux2 = criterion(aux2, labels)
-            loss = loss_main + 0.3 * loss_aux1 + 0.3 * loss_aux2
+
+            #loss = loss_main + 0.3 * loss_aux1 + 0.3 * loss_aux2
+            loss = loss_main + 0.1 * (loss_aux1 + loss_aux2)
 
             optimizer.zero_grad()
             loss.backward()
@@ -71,11 +99,15 @@ if __name__ == "__main__":
 
         epoch_loss = running_loss / len(train_loader.dataset)
         print(f"[Epoch {epoch+1}/{num_epochs}] Train Loss: {epoch_loss:.4f}")
-
+        
+        scheduler.step()
         # Eval 
         model.eval()
         correct = 0
         total = 0
+
+        all_labels = []  #Confusion matrix용
+        all_preds = []
 
         with torch.no_grad():
             for images, labels in test_loader:
@@ -88,5 +120,15 @@ if __name__ == "__main__":
                 total += labels.size(0)
                 correct += (preds == labels).sum().item()
 
+                all_labels.extend(labels.cpu().numpy())
+                all_preds.extend(preds.cpu().numpy())
+
         acc = correct / total if total > 0 else 0
         print(f"          Test Accuracy: {acc * 100:.2f}%")
+
+        # Confusion matrix 출력 
+        cm = confusion_matrix(all_labels, all_preds)
+        print("          Confusion matrix:")
+        print(cm)
+
+        plot_confusion_matrix(cm, train_dataset.classes)
