@@ -1,4 +1,141 @@
-## K-Nearest Neighbors (KNN) on CIFAR-10 — Assignment Version
+## Final Term — POC Dataset Classification using GoogLeNet
+
+### Development Process
+#### 1. Environment Setup
+
+Set up a PyTorch-based deep learning environment
+
+Configured data loaders using torchvision.datasets.ImageFolder
+
+Implemented augmentation and normalization pipelines
+
+Organized project structure (googlenet.py, train.py, result/)
+
+#### 2. Implementation of GoogLeNet Architecture
+
+Rebuilt Inception Modules from the original paper
+
+Implemented Auxiliary Classifiers for training stability
+
+Constructed the full GoogLeNet network architecture
+
+Controlled auxiliary outputs depending on training vs. inference mode
+
+#### 3. Dataset Preparation
+
+The POC dataset has the following structure:
+
+```
+
+POC_Dataset/
+  ├── Training/
+  └── Testing/
+
+```
+
+The Training folder was split into train : val = 90 : 10
+
+Training set → data augmentation applied
+
+Validation / Test sets → no augmentation (only resize + normalize)
+
+The Testing folder was strictly reserved for final evaluation only
+→ ensures no data leakage during training
+
+#### 4. Training Pipeline
+
+Loss: CrossEntropyLoss + weighted Auxiliary Loss
+
+Optimizer: Adam (lr = 1e-3)
+
+Learning Rate Scheduler: StepLR(step_size=7, gamma=0.1)
+
+Added tqdm progress bar
+
+Implemented Early Stopping with patience=5
+
+Saved the best-performing model to
+→ result/googlenet_poc_best.pt
+
+#### 5. Metrics & Visualization
+
+Logged training loss and validation accuracy each epoch
+
+Saved per-epoch validation confusion matrices
+→ result/cm_val_epoch_XX.png
+
+Saved final test confusion matrix
+→ result/cm_test_final.png
+
+Stored training history in CSV format
+→ result/training_log.csv
+
+#### 6. Final Test (Hold-out Evaluation)
+
+After training and validation were complete, the reserved Testing set was used for the final evaluation:
+
+Final Test Accuracy printed
+
+Final Confusion Matrix generated
+
+Confirms the model’s generalization performance on unseen data
+
+### Final Results Summary
+
+Best Validation Accuracy: 87.23%
+
+Final Test Accuracy: 81.34%
+
+Observations from Confusion Matrix:
+
+<img width="600" height="498" alt="스크린샷 2025-12-09 오후 5 32 08" src="https://github.com/user-attachments/assets/7ddea037-e598-4540-97c5-2fbf1b48c4d6" />
+
+Some confusion between Chorionic_villi and Trophoblastic_tissue
+
+Hemorrhage is classified relatively accurately
+
+Auxiliary classifiers contributed to more stable training on a small medical dataset
+
+### Project Structure
+
+```
+ ComputerVision/
+
+ ├── googlenet.py
+
+ ├── train.py
+
+ └── result/
+
+    ├── cm_val_epoch_01.png
+    
+    ├── cm_val_epoch_02.png
+    
+    ├── cm_test_final.png
+    
+    ├── training_log.csv
+    
+    └── googlenet_poc_best.pt
+    
+
+```
+Summary
+
+This project implements a full training pipeline for classifying medical images using a reconstructed GoogLeNet architecture.
+It includes:
+
+A complete train/validation/test split
+
+Auxiliary classifier support
+
+Training stability mechanisms
+
+Automated visualization and logging
+
+Rigorous final evaluation on a hold-out test set
+
+Perfect for academic reports, final term submissions, or showcasing deep learning engineering ability.
+## [MIDTERM]K-Nearest Neighbors (KNN) on CIFAR-10 — Assignment Version
 
 이 프로젝트는 CIFAR-10 이미지 데이터셋을 이용하여
 K-Nearest Neighbors (KNN) 분류기를 구현하고,
