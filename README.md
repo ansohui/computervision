@@ -1,140 +1,221 @@
-## Final Term — POC Dataset Classification using GoogLeNet
+#  **Final Term — POC Dataset Classification using GoogLeNet**
 
-### Development Process
-#### 1. Environment Setup
+## **Development Process**
 
-Set up a PyTorch-based deep learning environment
+---
 
-Configured data loaders using torchvision.datasets.ImageFolder
+### **1. Environment Setup**
 
-Implemented augmentation and normalization pipelines
+* Configured a PyTorch-based deep learning environment
+* Implemented data loading using `torchvision.datasets.ImageFolder`
+* Added augmentation and normalization pipelines
+* Organized the project structure (`googlenet.py`, `train.py`, `result/`)
 
-Organized project structure (googlenet.py, train.py, result/)
+---
 
-#### 2. Implementation of GoogLeNet Architecture
+### **2. Implementation of GoogLeNet Architecture**
 
-Rebuilt Inception Modules from the original paper
+* Reconstructed the Inception modules following the original paper
+* Implemented Auxiliary Classifiers to stabilize gradient flow
+* Built the complete GoogLeNet architecture from scratch
+* Ensured auxiliary outputs are used only during training, not inference
 
-Implemented Auxiliary Classifiers for training stability
+---
 
-Constructed the full GoogLeNet network architecture
+### **3. Dataset Preparation**
 
-Controlled auxiliary outputs depending on training vs. inference mode
-
-#### 3. Dataset Preparation
-
-The POC dataset has the following structure:
+The POC dataset contains two folders:
 
 ```
-
 POC_Dataset/
   ├── Training/
   └── Testing/
-
 ```
 
-The Training folder was split into train : val = 90 : 10
+* **Training** → split into **Train : Validation = 90 : 10**
+* **Train set** → augmentation applied
+* **Validation / Test sets** → only resize + normalize
+* **Testing** folder was strictly used only at the very end
+  → prevents data leakage and ensures proper generalization evaluation
 
-Training set → data augmentation applied
+---
 
-Validation / Test sets → no augmentation (only resize + normalize)
+## **4. Baseline Training**
 
-The Testing folder was strictly reserved for final evaluation only
-→ ensures no data leakage during training
+The initial baseline training used a minimal pipeline:
 
-#### 4. Training Pipeline
+* No augmentation
+* No LR scheduler
+* Direct train/test split
 
-Loss: CrossEntropyLoss + weighted Auxiliary Loss
+**Baseline performance:** ~50–56% accuracy
+<img width="319" height="32" alt="스크린샷 2025-12-09 오후 5 48 30" src="https://github.com/user-attachments/assets/b86ae148-4553-45a1-bc01-b957629c33f2" />
 
-Optimizer: Adam (lr = 1e-3)
+**Issues detected:**
 
-Learning Rate Scheduler: StepLR(step_size=7, gamma=0.1)
+* Unstable training
+* High confusion in certain classes
+* Sensitivity to class imbalance
 
-Added tqdm progress bar
+---
 
-Implemented Early Stopping with patience=5
+## **5. Data Augmentation & Normalization**
 
-Saved the best-performing model to
-→ result/googlenet_poc_best.pt
+To improve generalization, the following augmentations were added:
 
-#### 5. Metrics & Visualization
+* `RandomHorizontalFlip`
+* `RandomRotation`
+* `ColorJitter`
+* Input normalization (`mean=0.5`, `std=0.5`)
 
-Logged training loss and validation accuracy each epoch
+**Result:**
+Validation accuracy increased significantly — reaching **~71%**, with more stable loss curves.
+This showed augmentation was essential for this medical dataset.
+<img width="339" height="34" alt="스크린샷 2025-12-09 오후 5 48 49" src="https://github.com/user-attachments/assets/4142197a-04e4-4f3f-be6b-03c0a8f0d042" />
 
-Saved per-epoch validation confusion matrices
-→ result/cm_val_epoch_XX.png
+---
 
-Saved final test confusion matrix
-→ result/cm_test_final.png
+## **6. Training Stabilization**
 
-Stored training history in CSV format
-→ result/training_log.csv
+To build a more reliable training procedure:
 
-#### 6. Final Test (Hold-out Evaluation)
+* Added auxiliary classifier loss (GoogLeNet aux branches)
+* Introduced **StepLR** scheduler
+* Implemented **Early Stopping (patience = 5)**
+* Created a full **train/val/test split**
+* Added automatic logging (CSV)
+* Enabled intermediate Confusion Matrix visualization
 
-After training and validation were complete, the reserved Testing set was used for the final evaluation:
+**Effect:**
 
-Final Test Accuracy printed
+* Training stabilized
+* Overfitting became easier to detect
+* Best-performing model was saved automatically
 
-Final Confusion Matrix generated
+---
 
-Confirms the model’s generalization performance on unseen data
+## **7. Evaluation & Error Analysis**
 
-### Final Results Summary
+Confusion matrices were generated for both validation and final test sets.
 
-Best Validation Accuracy: 87.23%
+### **Key observations**
 
-Final Test Accuracy: 81.34%
+* **Chorionic_villi ↔ Trophoblastic_tissue** showed noticeable misclassification
+* **Hemorrhage** was classified relatively accurately
+* Visualization clearly revealed class imbalance and inter-class similarity issues
 
-Observations from Confusion Matrix:
+These insights guided tuning decisions throughout development.
 
-<img width="600" height="498" alt="스크린샷 2025-12-09 오후 5 32 08" src="https://github.com/user-attachments/assets/7ddea037-e598-4540-97c5-2fbf1b48c4d6" />
+---
 
-Some confusion between Chorionic_villi and Trophoblastic_tissue
+## **8. Final Results**
 
-Hemorrhage is classified relatively accurately
+* **Best Validation Accuracy:** 87.23%
+* **Final Test Accuracy:** 81.34%
+ <img width="303" height="88" alt="image" src="https://github.com/user-attachments/assets/3232ff3f-d678-418f-aa15-12487abbfc69" />
 
-Auxiliary classifiers contributed to more stable training on a small medical dataset
+* Exported results include:
 
-### Project Structure
+  * Per-epoch validation confusion matrices
+  * Final test confusion matrix
+  * Training log CSV
+  * Best model checkpoint
+
+Despite limited dataset size, the model shows strong improvement compared to the initial baseline.
+
+---
+
+## **9. Training Pipeline**
+
+* **Loss:** CrossEntropyLoss + weighted auxiliary losses
+* **Optimizer:** Adam (lr = 1e-3)
+* **Scheduler:** StepLR(step_size=7, gamma=0.1)
+* Added tqdm progress bars
+* Enabled Early Stopping (patience = 5)
+* Saved best model to:
+
+  ```
+  result/googlenet_poc_best.pt
+  ```
+
+---
+
+## **10. Metrics & Visualization**
+
+* Logged **training loss** and **validation accuracy** per epoch
+* Saved validation confusion matrices:
+
+  ```
+  result/cm_val_epoch_XX.png
+  ```
+* Saved final test confusion matrix:
+
+  ```
+  result/cm_test_final.png
+  ```
+* Exported training log:
+
+  ```
+  result/training_log.csv
+  ```
+
+---
+
+## **11. Final Test (Hold-out Evaluation)**
+
+After training, the reserved Testing dataset was used for unbiased evaluation:
+
+* Final Test Accuracy was computed
+* Final Confusion Matrix generated
+* Confirms generalization performance on unseen data
+
+---
+
+## **Final Results Summary**
+
+### **Metrics**
+
+* **Best Validation Accuracy:** 87.23%
+* **Final Test Accuracy:** 81.34%
+
+### **Confusion Matrix Insights**
+
+* Some confusion between **Chorionic_villi** and **Trophoblastic_tissue**
+* **Hemorrhage** was reliably classified
+* Auxiliary classifiers helped stabilize training on a small dataset
+
+---
+
+## **Project Structure**
 
 ```
- ComputerVision/
-
+ComputerVision/
  ├── googlenet.py
-
  ├── train.py
-
  └── result/
-
-    ├── cm_val_epoch_01.png
-    
-    ├── cm_val_epoch_02.png
-    
-    ├── cm_test_final.png
-    
-    ├── training_log.csv
-    
-    └── googlenet_poc_best.pt
-    
-
+      ├── cm_val_epoch_01.png
+      ├── cm_val_epoch_02.png
+      ├── cm_test_final.png
+      ├── training_log.csv
+      └── googlenet_poc_best.pt
 ```
-Summary
 
-This project implements a full training pipeline for classifying medical images using a reconstructed GoogLeNet architecture.
+---
+
+## **Summary**
+
+This project implements a complete training pipeline for classifying medical images using a reconstructed GoogLeNet architecture.
+
 It includes:
 
-A complete train/validation/test split
+* A clean train/validation/test workflow
+* Auxiliary classifier integration
+* Training stabilization techniques (scheduler, early stopping)
+* Automated logging and visual analysis
+* Rigorous evaluation on a dedicated hold-out test set
 
-Auxiliary classifier support
+This work demonstrates practical deep learning engineering skills suitable for academic submissions or portfolio use.
 
-Training stability mechanisms
-
-Automated visualization and logging
-
-Rigorous final evaluation on a hold-out test set
-
-Perfect for academic reports, final term submissions, or showcasing deep learning engineering ability.
 ## [MIDTERM]K-Nearest Neighbors (KNN) on CIFAR-10 — Assignment Version
 
 이 프로젝트는 CIFAR-10 이미지 데이터셋을 이용하여
