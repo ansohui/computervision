@@ -123,7 +123,45 @@ These insights guided tuning decisions throughout development.
 
 Despite limited dataset size, the model shows strong improvement compared to the initial baseline.
 
+# ** Result Summary **
+
+### **Final Test Performance Summary**
+
+| Metric                | Score      |
+| --------------------- | ---------- |
+| **Accuracy**          | **0.8134** |
+| **Macro Precision**   | **0.8214** |
+| **Macro Recall**      | **0.8045** |
+| **Macro F1-score**    | **0.8024** |
+| **Weighted F1-score** | **0.8025** |
+
 ---
+
+### **Per-Class Precision, Recall, F1-score**
+
+| Class                    | Precision | Recall | F1-score   |
+| ------------------------ | --------- | ------ | ---------- |
+| **Chorionic_villi**      | 0.8048    | 0.9359 | **0.8655** |
+| **Decidual_tissue**      | 0.8044    | 0.5186 | **0.6317** |
+| **Hemorrhage**           | 0.7619    | 0.9145 | **0.8317** |
+| **Trophoblastic_tissue** | 0.9147    | 0.8489 | **0.8807** |
+
+---
+
+### **Performance Interpretation**
+
+* **Chorionic_villi** and **Trophoblastic_tissue** achieved strong performance, each with high F1-scores (0.86–0.88).
+* **Hemorrhage** was also classified accurately (F1 ≈ 0.83).
+* **Decidual_tissue** exhibited noticeable misclassification (F1 ≈ 0.63), consistent with the Confusion Matrix.
+* The overall metrics (~0.80 macro/weighted F1) indicate **solid generalization** despite the dataset’s small size and inter-class similarity.
+* **Auxiliary classifiers** and **data augmentation** contributed significantly to training stability and performance.
+
+---
+
+### **Confusion Matrix (Final Test)**
+
+<img width="600" height="500" alt="cm_test_final" src="https://github.com/user-attachments/assets/95d6facd-c99d-4683-ba96-5356fffd02c2" />
+
 
 ## **9. Training Pipeline**
 
